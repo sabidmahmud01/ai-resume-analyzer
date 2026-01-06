@@ -1,24 +1,35 @@
-import os
-from dotenv import load_dotenv
-from sentence_transformers import SentenceTransformer
 from fastapi import FastAPI
-from openai import OpenAI
+from pydantic import BaseModel
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
-model = SentenceTransformer("all-MiniLM-L6-v2")
-
-
-
-load_dotenv()
-
+from sentence_transformers import SentenceTransformer
+from sklearn.metrics.pairwise import cosine_similarity
 
 app = FastAPI()
 
-def get_embedding(text):
+# Load the model once when the server starts
+model = SentenceTransformer("all-MiniLM-L6-v2")
+
+
+class AnalyzeRequest(BaseModel):
+    resume_text: str
+    job_text: str
+
+
+def get_embedding(text: str):
     embedding = model.encode(text)
     return embedding
 
+
+def calculate_similarity(text1: str, text2: str) -> float:
+    emb1 = get_embedding(text1)
+    emb2 = get_embedding(text2)
+
+    similarity = cosine_similarity([emb1], [emb2])[0][0]
+    return float(similarity)
+
+
+def similarity_to_percent(similarity: float) -> float:
+    return round(similarity * 100, 2)
 
 
 @app.get("/")
@@ -26,8 +37,12 @@ def root():
     return {"message": "AI Resume Analyzer is running"}
 
 
+@app.post("/analyze")
+def analyze(request: AnalyzeRequest):
+    similarity = calculate_similarity(request.resume_text, request.job_text)
+    match_percent = similarity_to_percent(similarity)
 
-if __name__ == "__main__":
-    emb = get_embedding("I am a Python backend developer")
-    print(len(emb))
-    print(emb[:5])
+    return {
+        "similarity": similarity,
+        "match_percent": match_percent
+    }

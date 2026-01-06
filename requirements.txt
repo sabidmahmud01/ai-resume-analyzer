@@ -1,6 +1,7 @@
+spacy
+scikit-learn
+sentence-transformers
+numpy
 fastapi
 uvicorn
-sentence-transformers
-scikit-learn
-numpy
 python-dotenv
